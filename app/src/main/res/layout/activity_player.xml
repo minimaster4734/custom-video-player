@@ -30,8 +30,8 @@
         android:layout_gravity="bottom"
         android:orientation="vertical"
         android:background="#99000000"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp">
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -62,24 +62,17 @@
                 android:textColor="#FFFFFF" />
         </LinearLayout>
 
+        <!-- Row 1: transport. Fixed small group, centred. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/btnSpeed"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="1.0x"
-                android:textColor="#FFFFFF" />
-
             <ImageButton
                 android:id="@+id/btnBack"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/seek_back"
                 android:src="@drawable/ic_seek_back"
@@ -87,8 +80,8 @@
 
             <ImageButton
                 android:id="@+id/btnPlay"
-                android:layout_width="64dp"
-                android:layout_height="64dp"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/play"
                 android:src="@drawable/ic_play"
@@ -96,27 +89,77 @@
 
             <ImageButton
                 android:id="@+id/btnForward"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/seek_forward"
                 android:src="@drawable/ic_seek_forward"
                 android:tint="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- Row 2: options. Equal-width slots (weight 1) so all four always
+             fit, whatever the screen width. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <Button
+                android:id="@+id/btnSpeed"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:minWidth="0dp"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:maxLines="1"
+                android:text="1.0x"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF" />
 
             <Button
                 android:id="@+id/btnLoop"
                 style="?android:attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:minWidth="0dp"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:maxLines="1"
                 android:text="@string/loop_off"
+                android:textSize="12sp"
                 android:textColor="#FFFFFF" />
 
             <Button
                 android:id="@+id/btnStats"
                 style="?android:attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:minWidth="0dp"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:maxLines="1"
                 android:text="@string/stats"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF" />
+
+            <Button
+                android:id="@+id/btnRotate"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:minWidth="0dp"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:maxLines="1"
+                android:text="@string/rotate"
+                android:textSize="12sp"
                 android:textColor="#FFFFFF" />
         </LinearLayout>
     </LinearLayout>

@@ -1,5 +1,6 @@
 package com.leandro.customplayer
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -86,6 +87,13 @@ class PlayerActivity : AppCompatActivity(), SurfaceHolder.Callback {
             NativePlayer.nativeSetLooping(looping)
             binding.btnLoop.setText(if (looping) R.string.loop_on else R.string.loop_off)
         }
+        // Some phones ignore the system rotation setting, so rotate explicitly.
+        binding.btnRotate.setOnClickListener {
+            val landscape = resources.configuration.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            requestedOrientation = if (landscape) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                   else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
         binding.btnStats.setOnClickListener {
             statsVisible = !statsVisible
             binding.statsText.visibility = if (statsVisible) View.VISIBLE else View.GONE
@@ -127,6 +135,10 @@ class PlayerActivity : AppCompatActivity(), SurfaceHolder.Callback {
         binding.playerView.setVideoSize(
             NativePlayer.nativeGetVideoWidth(), NativePlayer.nativeGetVideoHeight()
         )
+        // Wide video: start in landscape (the Rotate button can undo this).
+        if (NativePlayer.nativeGetVideoWidth() > NativePlayer.nativeGetVideoHeight()) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
         binding.seekBar.max = durationMs.toInt()
         binding.durationText.text = formatTime(durationMs)
 
