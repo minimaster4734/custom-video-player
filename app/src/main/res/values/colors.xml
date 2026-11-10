@@ -1,0 +1,14 @@
+<resources>
+    <color name="ic_launcher_background">#3D5AFE</color>
+    <color name="colorPrimary">#3D5AFE</color>
+    <color name="colorPrimaryDark">#2A3EB1</color>
+    <color name="colorAccent">#3D5AFE</color>
+
+    <!-- Explicit, deterministic text/icon and background colors, not
+         theme-attribute-derived. Paired with AppSettings' explicit
+         AppCompatDelegate.setDefaultNightMode() call and this values-night/
+         override, these always contrast correctly regardless of how (or
+         whether) the OS itself signals dark mode. -->
+    <color name="textIconColor">#1A1A1A</color>
+    <color name="screenBackground">#FFFFFF</color>
+</resources>

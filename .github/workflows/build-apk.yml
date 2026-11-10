@@ -1,0 +1,77 @@
+name: Build Custom Player APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+env:
+  NDK_VERSION: "25.2.9519653"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Locate sdkmanager on the runner's preinstalled SDK
+        run: |
+          SDKMANAGER=$(find "$ANDROID_SDK_ROOT" -name sdkmanager -type f | head -n1)
+          if [ -z "$SDKMANAGER" ]; then
+            echo "Could not find sdkmanager under $ANDROID_SDK_ROOT" >&2
+            exit 1
+          fi
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+
+      - name: Accept SDK licenses
+        run: yes | "$SDKMANAGER" --licenses > /dev/null || true
+
+      - name: Install SDK/NDK/CMake components
+        run: |
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmake;3.22.1" "ndk;${NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build nasm pkg-config patchelf jq
+          # dav1d's meson file needs a reasonably recent meson
+          pip install --user --upgrade meson
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # The native libraries only change when versions.json or the scripts do,
+      # so they are cached; a normal app-code push skips this long build.
+      - name: Cache built native libraries
+        id: native-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/src/main/jniLibs
+            app/src/main/cpp/prebuilt/include
+          key: native-${{ env.NDK_VERSION }}-${{ hashFiles('third_party/versions.json', 'third_party/build_scripts/**') }}
+
+      - name: Build native dependencies (FFmpeg, dav1d, fdk-aac)
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        run: |
+          chmod +x third_party/build_scripts/*.sh
+          ./third_party/build_scripts/build_all.sh
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: custom-player-debug-armeabi-v7a
+          path: app/build/outputs/apk/debug/*.apk

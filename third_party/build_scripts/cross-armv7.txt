@@ -1,0 +1,15 @@
+[binaries]
+c = 'armv7a-linux-androideabi24-clang'
+cpp = 'armv7a-linux-androideabi24-clang++'
+ar = 'llvm-ar'
+strip = 'llvm-strip'
+
+[host_machine]
+system = 'android'
+cpu_family = 'arm'
+cpu = 'armv7'
+endian = 'little'
+
+[built-in options]
+c_args = ['-march=armv7-a', '-mfpu=neon', '-mfloat-abi=softfp']
+cpp_args = ['-march=armv7-a', '-mfpu=neon', '-mfloat-abi=softfp']

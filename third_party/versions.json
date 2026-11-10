@@ -1,0 +1,23 @@
+{
+  "ffmpeg": {
+    "source": "git",
+    "url": "https://github.com/FFmpeg/FFmpeg.git",
+    "ref": "release/7.1",
+    "ref_type": "branch",
+    "pin": null
+  },
+  "dav1d": {
+    "source": "git",
+    "url": "https://github.com/videolan/dav1d.git",
+    "ref": "1.5.3",
+    "ref_type": "tag",
+    "pin": null
+  },
+  "fdk_aac": {
+    "source": "git",
+    "url": "https://github.com/mstorsjo/fdk-aac.git",
+    "ref": "v2.0.3",
+    "ref_type": "tag",
+    "pin": null
+  }
+}

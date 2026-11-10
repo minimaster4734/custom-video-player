@@ -1,0 +1,72 @@
+name: Check dependency updates
+
+# Weekly: compares the versions pinned in third_party/versions.json with the
+# newest upstream releases and opens (or updates) one issue listing anything
+# newer. It never changes the build by itself -- upgrading is a deliberate
+# edit of versions.json (see README).
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare pinned versions with upstream
+        id: compare
+        run: |
+          set -euo pipefail
+          M=third_party/versions.json
+          REPORT=""
+
+          latest_tag() { # url, grep pattern for acceptable tags
+            git ls-remote --tags --refs "$1" | sed 's#.*refs/tags/##' | grep -E "$2" | sort -V | tail -n1
+          }
+
+          # FFmpeg follows release branches
+          cur=$(jq -r '.ffmpeg.ref' $M)
+          newest=$(git ls-remote --heads https://github.com/FFmpeg/FFmpeg.git 'release/*' \
+                   | sed 's#.*refs/heads/##' | sort -V | tail -n1)
+          if [ "$cur" != "$newest" ]; then
+            REPORT+="- **FFmpeg**: pinned \`$cur\`, newest release branch \`$newest\`"$'\n'
+          fi
+
+          cur=$(jq -r '.dav1d.ref' $M)
+          newest=$(latest_tag "$(jq -r '.dav1d.url' $M)" '^[0-9]+\.[0-9]+\.[0-9]+$')
+          if [ "$cur" != "$newest" ]; then
+            REPORT+="- **dav1d**: pinned \`$cur\`, newest tag \`$newest\`"$'\n'
+          fi
+
+          cur=$(jq -r '.fdk_aac.ref' $M)
+          newest=$(latest_tag "$(jq -r '.fdk_aac.url' $M)" '^v[0-9]+\.[0-9]+\.[0-9]+$')
+          if [ "$cur" != "$newest" ]; then
+            REPORT+="- **fdk-aac**: pinned \`$cur\`, newest tag \`$newest\`"$'\n'
+          fi
+
+          if [ -n "$REPORT" ]; then
+            printf '%s' "$REPORT" > report.md
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update the issue
+        if: steps.compare.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Dependency updates available"
+          BODY="$(cat report.md)"$'\n\n'"To upgrade: edit \`third_party/versions.json\`, push, and check that the build still passes (see README)."
+          NUM=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$NUM" ]; then
+            gh issue edit "$NUM" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY"
+          fi

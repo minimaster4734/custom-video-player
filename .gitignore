@@ -1,0 +1,13 @@
+.gradle/
+build/
+*.iml
+.idea/
+local.properties
+app/build/
+app/src/main/cpp/prebuilt/*/
+!app/src/main/cpp/prebuilt/.gitkeep
+third_party/src/
+third_party/armeabi-v7a/
+*.apk
+app/src/main/jniLibs/
+app/src/main/cpp/prebuilt/include/

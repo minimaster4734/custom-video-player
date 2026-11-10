@@ -1,0 +1,13 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_open_folder"
+        android:title="@string/open_folder"
+        android:icon="@drawable/ic_folder"
+        app:showAsAction="always"
+        app:iconTint="@android:color/white" />
+    <item
+        android:id="@+id/action_open_file"
+        android:title="@string/open_file"
+        app:showAsAction="never" />
+</menu>

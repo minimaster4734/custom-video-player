@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">Custom Player</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="open_folder">Open folder</string>
+    <string name="open_file">Open file</string>
+    <string name="seek_back">Rewind 10 seconds</string>
+    <string name="seek_forward">Forward 10 seconds</string>
+    <string name="settings">Settings</string>
+    <string name="theme">Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">Follow system</string>
+    <string name="file_picker_mode">Folder picker</string>
+    <string name="picker_legacy">Legacy file browser</string>
+    <string name="picker_saf">System folder picker</string>
+    <string name="picker_legacy_hint">The legacy browser reads storage directly and works reliably on Android 7–9. On Android 10+, scoped storage may block it from seeing folders outside this app\'s own space — use the system picker there instead.</string>
+    <string name="use_this_folder">Use this folder</string>
+    <string name="up_one_level">.. (up one level)</string>
+    <string name="legacy_permission_denied">Storage permission is needed to browse files this way</string>
+    <string name="no_videos_found">No supported video files found. Use the folder button to pick a folder.</string>
+    <string name="cannot_play">Cannot play this file</string>
+    <string name="loop_off">Loop: off</string>
+    <string name="loop_on">Loop: on</string>
+    <string name="stats">Stats</string>
+</resources>
