@@ -23,12 +23,19 @@ rm -rf "build-${ABI}"
 mkdir "build-${ABI}"
 cd "build-${ABI}"
 
+# fdk-aac includes an Android-internal header (log/log.h) when __ANDROID__ is set;
+# the NDK does not ship it, so provide a stub that makes the call a no-op.
+STUB="$PWD/stub-include"
+mkdir -p "$STUB/log"
+echo "#define android_errorWriteLog(tag, subTag) ((void)0)" > "$STUB/log/log.h"
+
 cmake .. \
     -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="${ABI}" \
     -DANDROID_PLATFORM="android-${API}" \
     -DANDROID_STL=c++_shared \
     -DBUILD_SHARED_LIBS=ON \
+    -DCMAKE_CXX_FLAGS="-I$STUB" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${INSTALL}"
 
