@@ -609,6 +609,7 @@ void NativePlayer::videoDecodeLoop() {
     uint32_t eof_done_gen = 0xFFFFFFFFu;
     int64_t last_pts_ms = 0;
     int64_t frame_dur_ms = 33;
+    int64_t send_ns = 0; // time spent in avcodec_send_packet since the last frame came out
     {
         AVRational fr = fmt_ctx_->streams[video_stream_index_]->avg_frame_rate;
         if (fr.num > 0 && fr.den > 0) frame_dur_ms = std::max<int64_t>(1, 1000LL * fr.den / fr.num);
@@ -618,6 +619,7 @@ void NativePlayer::videoDecodeLoop() {
     // Returns false if the queue was aborted (shutdown).
     auto drainFrames = [&]() -> bool {
         while (!stop_requested_.load()) {
+            int64_t t_recv = nowNs();
             int r = avcodec_receive_frame(video_ctx_, frame);
             if (r == AVERROR(EAGAIN) || r == AVERROR_EOF) return true;
             if (r < 0) {
@@ -625,6 +627,12 @@ void NativePlayer::videoDecodeLoop() {
                 return true;
             }
 
+            {   // smoothed per-frame decode cost: time in send_packet + receive_frame
+                int64_t us = (nowNs() - t_recv + send_ns) / 1000;
+                send_ns = 0;
+                dec_us_.store((dec_us_.load() * 9 + us) / 10);
+                src_pix_fmt_.store(frame->format);
+            }
             int64_t pts = frame->best_effort_timestamp;
             if (pts == AV_NOPTS_VALUE) pts = frame->pts;
             int64_t pts_ms = (pts == AV_NOPTS_VALUE) ? last_pts_ms + frame_dur_ms
@@ -659,8 +667,10 @@ void NativePlayer::videoDecodeLoop() {
                     av_frame_unref(frame);
                     continue;
                 }
+                int64_t t_conv = nowNs();
                 sws_scale(sws_ctx_, frame->data, frame->linesize, 0, frame->height,
                           out->data, out->linesize);
+                conv_us_.store((conv_us_.load() * 9 + (nowNs() - t_conv) / 1000) / 10);
                 av_frame_unref(frame);
             }
 
@@ -718,7 +728,9 @@ void NativePlayer::videoDecodeLoop() {
             local_gen = tag;
         }
 
+        int64_t t_send = nowNs();
         int r = avcodec_send_packet(video_ctx_, pkt);
+        send_ns += nowNs() - t_send;
         av_packet_free(&pkt);
         if (r < 0 && r != AVERROR(EAGAIN) && r != AVERROR_EOF) {
             LOGW("avcodec_send_packet (video) error %d", r);
@@ -1050,11 +1062,15 @@ std::string NativePlayer::getStats() {
 
     const char *decoder = has_video_ ? video_decoder_name_.c_str()
                                      : (has_audio_ ? audio_decoder_name_.c_str() : "none");
-    char buf[256];
+    const char *pix = av_get_pix_fmt_name((AVPixelFormat)src_pix_fmt_.load());
+    char buf[512];
     snprintf(buf, sizeof(buf),
-             "{\"fps\":%.1f,\"dropped\":%d,\"cpu\":%.1f,\"decoder\":\"%s\",\"av_offset_ms\":%lld}",
+             "{\"fps\":%.1f,\"dropped\":%d,\"cpu\":%.1f,\"decoder\":\"%s\",\"av_offset_ms\":%lld,"
+             "\"res\":\"%dx%d\",\"pix\":\"%s\",\"cores\":%ld,\"dec_ms\":%.1f,\"conv_ms\":%.1f}",
              last_fps_, frames_dropped_.load(), last_cpu_, decoder,
-             (long long)last_av_offset_ms_.load());
+             (long long)last_av_offset_ms_.load(),
+             video_width_.load(), video_height_.load(), pix ? pix : "?",
+             sysconf(_SC_NPROCESSORS_ONLN), dec_us_.load() / 1000.0, conv_us_.load() / 1000.0);
     return std::string(buf);
 }
 

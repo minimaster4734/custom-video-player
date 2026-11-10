@@ -166,6 +166,9 @@ private:
     std::atomic<int> frames_rendered_since_stat_{0};
     std::atomic<int> frames_dropped_{0};
     std::atomic<int64_t> last_av_offset_ms_{0};
+    std::atomic<int64_t> dec_us_{0};            // smoothed decode time per frame (microseconds)
+    std::atomic<int64_t> conv_us_{0};           // smoothed pixel-format conversion time per frame
+    std::atomic<int> src_pix_fmt_{-1};          // pixel format the decoder produces
     struct timespec last_stat_wall_{};
     int64_t last_stat_cpu_ns_ = 0;
     double last_fps_ = 0.0;

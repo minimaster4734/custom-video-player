@@ -163,9 +163,12 @@ class PlayerActivity : AppCompatActivity(), SurfaceHolder.Callback {
             try {
                 val j = JSONObject(NativePlayer.nativeGetStats())
                 binding.statsText.text = String.format(
-                    Locale.US, "%s  %.1f fps\ndropped %d  cpu %.0f%%\nA/V %+d ms",
+                    Locale.US,
+                    "%s  %.1f fps\ndropped %d  cpu %.0f%%\nA/V %+d ms\n%s %s  cores %d\ndecode %.1f ms  convert %.1f ms",
                     j.optString("decoder"), j.optDouble("fps"), j.optInt("dropped"),
-                    j.optDouble("cpu"), j.optInt("av_offset_ms")
+                    j.optDouble("cpu"), j.optInt("av_offset_ms"),
+                    j.optString("res"), j.optString("pix"), j.optInt("cores"),
+                    j.optDouble("dec_ms"), j.optDouble("conv_ms")
                 )
             } catch (e: Exception) { }
         }

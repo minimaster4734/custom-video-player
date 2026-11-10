@@ -213,22 +213,39 @@ void Renderer::release() {
  * standard, correct way to handle this on GLES2. */
 void Renderer::uploadPlane(GLuint tex, int width, int height, const uint8_t *data, int linesize) {
     glBindTexture(GL_TEXTURE_2D, tex);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     if (linesize == width) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
-                     GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
-    } else {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0,
-                     GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
-        for (int row = 0; row < height; row++) {
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, row, width, 1,
-                             GL_LUMINANCE, GL_UNSIGNED_BYTE, data + (size_t)row * linesize);
-        }
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+                        GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+        return;
     }
+    // Decoders pad each row (linesize > width) and GLES2 has no
+    // UNPACK_ROW_LENGTH. Copy the rows tightly into one buffer and upload
+    // that in a SINGLE call; uploading row by row (over a thousand GL calls
+    // per frame) stalls mobile GPU drivers badly.
+    scratch_.resize((size_t)width * height);
+    for (int row = 0; row < height; row++) {
+        memcpy(scratch_.data() + (size_t)row * width, data + (size_t)row * linesize, (size_t)width);
+    }
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+                    GL_LUMINANCE, GL_UNSIGNED_BYTE, scratch_.data());
 }
 
 void Renderer::ensureTextures(int width, int height) {
+    // (Re)allocate texture storage ONCE per video size; frames then only
+    // overwrite it (glTexSubImage2D) instead of reallocating every frame.
     tex_width_ = width;
     tex_height_ = height;
+    int cw = (width + 1) / 2, ch = (height + 1) / 2;
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    const GLuint texs[3] = {tex_y_, tex_u_, tex_v_};
+    const int ws[3] = {width, cw, cw};
+    const int hs[3] = {height, ch, ch};
+    for (int i = 0; i < 3; i++) {
+        glBindTexture(GL_TEXTURE_2D, texs[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, ws[i], hs[i], 0,
+                     GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
+    }
 }
 
 void Renderer::renderFrame(AVFrame *frame) {

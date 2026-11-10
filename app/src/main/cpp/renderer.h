@@ -1,6 +1,7 @@
 #ifndef CUSTOMPLAYER_RENDERER_H
 #define CUSTOMPLAYER_RENDERER_H
 
+#include <vector>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <android/native_window.h>
@@ -33,7 +34,7 @@ private:
     bool compileProgram();
     static GLuint compileShader(GLenum type, const char *src);
     void ensureTextures(int width, int height);
-    static void uploadPlane(GLuint tex, int width, int height, const uint8_t *data, int linesize);
+    void uploadPlane(GLuint tex, int width, int height, const uint8_t *data, int linesize);
 
     ANativeWindow *window_ = nullptr;
     EGLDisplay display_ = EGL_NO_DISPLAY;
@@ -51,6 +52,7 @@ private:
 
     GLuint tex_y_ = 0, tex_u_ = 0, tex_v_ = 0;
     int tex_width_ = 0, tex_height_ = 0;
+    std::vector<uint8_t> scratch_;   // tight copy of a padded plane, for a single upload
 
     bool initialized_ = false;
 };
