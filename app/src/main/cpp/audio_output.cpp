@@ -125,6 +125,32 @@ void AudioOutput::close() {
     pthread_mutex_unlock(&mutex_);
 }
 
+int64_t AudioOutput::monoNs() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+/* Caller holds mutex_. Records which buffer is playing now. */
+void AudioOutput::updateFrontLocked() {
+    int n = in_flight_.empty() ? 0 : in_flight_.front().frames;
+    if (n != front_frames_.load() || n == 0) {
+        front_frames_.store(n);
+    }
+}
+
+int64_t AudioOutput::framesPlayedSmooth() const {
+    int64_t base = frames_written_.load();
+    int front = front_frames_.load();
+    if (front <= 0 || sample_rate_ <= 0) return base;
+    int64_t elapsed_ns = paused_.load() ? frozen_extra_ns_.load()
+                                        : monoNs() - front_start_ns_.load();
+    if (elapsed_ns < 0) elapsed_ns = 0;
+    int64_t extra = elapsed_ns * sample_rate_ / 1000000000LL;
+    if (extra > front) extra = front;
+    return base + extra;
+}
+
 void AudioOutput::bufferQueueCallbackTrampoline(SLAndroidSimpleBufferQueueItf bq, void *context) {
     (void)bq;
     static_cast<AudioOutput *>(context)->onBufferConsumed();
@@ -139,7 +165,10 @@ void AudioOutput::onBufferConsumed() {
         free(done.data);
         outstanding_--;
     }
+    front_start_ns_.store(monoNs()); // next buffer starts playing right now
+    updateFrontLocked();
     enqueueReadyLocked();
+    updateFrontLocked();
     pthread_cond_signal(&cond_);
     pthread_mutex_unlock(&mutex_);
 }
@@ -156,6 +185,7 @@ void AudioOutput::enqueueReadyLocked() {
             free(c.data);
             continue;
         }
+        if (in_flight_.empty()) front_start_ns_.store(monoNs()); // queue was idle
         in_flight_.push_back(c);
         outstanding_++;
     }
@@ -212,12 +242,22 @@ void AudioOutput::flush() {
     in_flight_.clear();
     outstanding_ = 0;
     partial_.frames = 0;
+    front_frames_.store(0);
+    front_start_ns_.store(monoNs());
+    frozen_extra_ns_.store(0);
     pthread_cond_broadcast(&cond_);
     pthread_mutex_unlock(&mutex_);
 }
 
 void AudioOutput::setPaused(bool paused) {
     if (!player_play_) return;
+    if (paused && !paused_.load()) {
+        frozen_extra_ns_.store(monoNs() - front_start_ns_.load());
+        paused_.store(true);
+    } else if (!paused && paused_.load()) {
+        front_start_ns_.store(monoNs() - frozen_extra_ns_.load()); // resume mid-buffer
+        paused_.store(false);
+    }
     (*player_play_)->SetPlayState(player_play_, paused ? SL_PLAYSTATE_PAUSED : SL_PLAYSTATE_PLAYING);
 }
 

@@ -168,6 +168,14 @@ private:
     std::atomic<int64_t> last_av_offset_ms_{0};
     std::atomic<int64_t> dec_us_{0};            // smoothed decode time per frame (microseconds)
     std::atomic<int64_t> conv_us_{0};           // smoothed pixel-format conversion time per frame
+    std::atomic<int64_t> max_dec_us_{0};        // worst single decode since last stats refresh
+    std::atomic<int64_t> max_render_us_{0};     // worst single renderFrame since last refresh
+    std::atomic<int64_t> max_late_ms_{0};       // worst lateness of a dropped frame since last refresh
+    int64_t shown_dec_max_us_ = 0, shown_render_max_us_ = 0, shown_late_max_ms_ = 0;
+    static void atomicMax(std::atomic<int64_t> &a, int64_t v) {
+        int64_t cur = a.load();
+        while (v > cur && !a.compare_exchange_weak(cur, v)) {}
+    }
     std::atomic<int64_t> render_us_{0};         // smoothed time inside renderFrame (upload + draw + swap)
     std::atomic<int> src_pix_fmt_{-1};          // pixel format the decoder produces
     struct timespec last_stat_wall_{};

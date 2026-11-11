@@ -410,7 +410,7 @@ int64_t NativePlayer::ptsToMs(int64_t pts, AVRational tb) const {
 int64_t NativePlayer::clockPositionLocked() {
     if (clock_gen_ != seek_gen_.load()) return pending_pos_ms_.load();
     if (clock_audio_mode_) {
-        int64_t frames = audio_output_.framesWritten() - clock_anchor_frames_;
+        int64_t frames = audio_output_.framesPlayedSmooth() - clock_anchor_frames_;
         if (frames < 0) frames = 0;
         return clock_base_ms_ + (int64_t)((double)frames * 1000.0 * clock_rate_ / audio_out_rate_);
     }
@@ -434,7 +434,7 @@ void NativePlayer::anchorAudioClock(uint32_t gen, int64_t pts_ms) {
         clock_gen_ = gen;
         clock_audio_mode_ = true;
         clock_base_ms_ = pts_ms;
-        clock_anchor_frames_ = audio_output_.framesWritten();
+        clock_anchor_frames_ = audio_output_.framesPlayedSmooth();
         clock_rate_ = speed_.load();
     }
     pthread_mutex_unlock(&clock_mutex_);
@@ -631,6 +631,7 @@ void NativePlayer::videoDecodeLoop() {
                 int64_t us = (nowNs() - t_recv + send_ns) / 1000;
                 send_ns = 0;
                 dec_us_.store((dec_us_.load() * 9 + us) / 10);
+                atomicMax(max_dec_us_, us);
                 src_pix_fmt_.store(frame->format);
             }
             int64_t pts = frame->best_effort_timestamp;
@@ -1008,6 +1009,7 @@ void NativePlayer::renderLoop() {
             int64_t delay = sync_.delayForVideoPtsMs(pts_ms);
             if (delay == Sync::kDropFrame) {
                 frames_dropped_.fetch_add(1);
+                atomicMax(max_late_ms_, clockPositionMs() - pts_ms);
                 av_frame_free(&pending);
                 pending = nullptr;
                 continue;
@@ -1022,7 +1024,9 @@ void NativePlayer::renderLoop() {
         if (renderer_.isInitialized()) {
             int64_t t_r = nowNs();
             renderer_.renderFrame(pending);
-            render_us_.store((render_us_.load() * 9 + (nowNs() - t_r) / 1000) / 10);
+            int64_t r_us = (nowNs() - t_r) / 1000;
+            render_us_.store((render_us_.load() * 9 + r_us) / 10);
+            atomicMax(max_render_us_, r_us);
         }
         frames_rendered_since_stat_.fetch_add(1);
         last_av_offset_ms_.store(pts_ms - clockPositionMs());
@@ -1061,6 +1065,9 @@ std::string NativePlayer::getStats() {
             last_cpu_ = (double)(cpu_ns - last_stat_cpu_ns_) / (dt * 1e9) * 100.0; // % of ONE core
             last_stat_wall_ = wall;
             last_stat_cpu_ns_ = cpu_ns;
+            shown_dec_max_us_ = max_dec_us_.exchange(0);
+            shown_render_max_us_ = max_render_us_.exchange(0);
+            shown_late_max_ms_ = max_late_ms_.exchange(0);
         }
     }
 
@@ -1071,12 +1078,14 @@ std::string NativePlayer::getStats() {
     snprintf(buf, sizeof(buf),
              "{\"fps\":%.1f,\"dropped\":%d,\"cpu\":%.1f,\"decoder\":\"%s\",\"av_offset_ms\":%lld,"
              "\"res\":\"%dx%d\",\"pix\":\"%s\",\"cores\":%ld,\"dec_ms\":%.1f,\"conv_ms\":%.1f,"
-             "\"rend_ms\":%.1f,\"vq\":%d,\"pq\":%d}",
+             "\"rend_ms\":%.1f,\"vq\":%d,\"pq\":%d,\"dmax_ms\":%.1f,\"rmax_ms\":%.1f,\"late_ms\":%lld}",
              last_fps_, frames_dropped_.load(), last_cpu_, decoder,
              (long long)last_av_offset_ms_.load(),
              video_width_.load(), video_height_.load(), pix ? pix : "?",
              sysconf(_SC_NPROCESSORS_ONLN), dec_us_.load() / 1000.0, conv_us_.load() / 1000.0,
-             render_us_.load() / 1000.0, video_frames_.size(), video_packets_.size());
+             render_us_.load() / 1000.0, video_frames_.size(), video_packets_.size(),
+             shown_dec_max_us_ / 1000.0, shown_render_max_us_ / 1000.0,
+             (long long)shown_late_max_ms_);
     return std::string(buf);
 }
 

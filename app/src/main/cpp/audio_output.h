@@ -32,6 +32,12 @@ public:
      * this is the audio master clock: framesWritten() * 1000 / sampleRate()
      * gives the current audio position in ms. */
     int64_t framesWritten() const { return frames_written_.load(); }
+
+    /* Smoothed clock: framesWritten() only moves when a whole 4096-frame
+     * buffer (~90 ms) finishes, which makes video frames bunch up and get
+     * dropped. This adds the time elapsed inside the buffer that is playing
+     * right now (capped at that buffer's length, frozen while paused). */
+    int64_t framesPlayedSmooth() const;
     int sampleRate() const { return sample_rate_; }
 
     /* Drops any buffered-but-unplayed audio -- call on seek. */
@@ -49,6 +55,8 @@ private:
     static void bufferQueueCallbackTrampoline(SLAndroidSimpleBufferQueueItf bq, void *context);
     void onBufferConsumed();
     void enqueueReadyLocked();
+    void updateFrontLocked();
+    static int64_t monoNs();
 
     struct Chunk {
         int16_t *data;
@@ -72,6 +80,10 @@ private:
     Chunk partial_{nullptr, 0};      // being filled by write() until it's full
 
     std::atomic<int64_t> frames_written_{0};
+    std::atomic<int> front_frames_{0};          // length of the buffer now playing (0 = none)
+    std::atomic<int64_t> front_start_ns_{0};    // when it (effectively) started playing
+    std::atomic<bool> paused_{false};
+    std::atomic<int64_t> frozen_extra_ns_{0};   // elapsed-in-buffer captured at pause
     int sample_rate_ = 44100;
     int channels_ = 2;
     bool opened_ = false;
