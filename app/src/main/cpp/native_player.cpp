@@ -1019,7 +1019,11 @@ void NativePlayer::renderLoop() {
         }
 
         // ---- 4. display
-        if (renderer_.isInitialized()) renderer_.renderFrame(pending);
+        if (renderer_.isInitialized()) {
+            int64_t t_r = nowNs();
+            renderer_.renderFrame(pending);
+            render_us_.store((render_us_.load() * 9 + (nowNs() - t_r) / 1000) / 10);
+        }
         frames_rendered_since_stat_.fetch_add(1);
         last_av_offset_ms_.store(pts_ms - clockPositionMs());
 
@@ -1066,11 +1070,13 @@ std::string NativePlayer::getStats() {
     char buf[512];
     snprintf(buf, sizeof(buf),
              "{\"fps\":%.1f,\"dropped\":%d,\"cpu\":%.1f,\"decoder\":\"%s\",\"av_offset_ms\":%lld,"
-             "\"res\":\"%dx%d\",\"pix\":\"%s\",\"cores\":%ld,\"dec_ms\":%.1f,\"conv_ms\":%.1f}",
+             "\"res\":\"%dx%d\",\"pix\":\"%s\",\"cores\":%ld,\"dec_ms\":%.1f,\"conv_ms\":%.1f,"
+             "\"rend_ms\":%.1f,\"vq\":%d,\"pq\":%d}",
              last_fps_, frames_dropped_.load(), last_cpu_, decoder,
              (long long)last_av_offset_ms_.load(),
              video_width_.load(), video_height_.load(), pix ? pix : "?",
-             sysconf(_SC_NPROCESSORS_ONLN), dec_us_.load() / 1000.0, conv_us_.load() / 1000.0);
+             sysconf(_SC_NPROCESSORS_ONLN), dec_us_.load() / 1000.0, conv_us_.load() / 1000.0,
+             render_us_.load() / 1000.0, video_frames_.size(), video_packets_.size());
     return std::string(buf);
 }
 
