@@ -30,6 +30,11 @@ public:
 
     bool isInitialized() const { return initialized_; }
 
+    /* Smoothed microseconds spent uploading planes / in eglSwapBuffers,
+     * written by the render thread, read by the stats code. */
+    int upload_us() const { return upload_us_; }
+    int swap_us() const { return swap_us_; }
+
 private:
     bool compileProgram();
     static GLuint compileShader(GLenum type, const char *src);
@@ -54,6 +59,8 @@ private:
     int tex_width_ = 0, tex_height_ = 0;
     std::vector<uint8_t> scratch_;   // tight copy of a padded plane, for a single upload
 
+    volatile int upload_us_ = 0;
+    volatile int swap_us_ = 0;
     bool initialized_ = false;
 };
 

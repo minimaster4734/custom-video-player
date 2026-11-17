@@ -74,6 +74,9 @@ bool openDecoder(AVStream *st, int threads, AVCodecContext **out, std::string *n
         return false;
     }
     ctx->pkt_timebase = st->time_base;
+    // AV1 film grain is synthesised per frame and costs real CPU on weak
+    // phones; asking for it as side data instead makes dav1d skip it.
+    ctx->export_side_data |= AV_CODEC_EXPORT_DATA_FILM_GRAIN;
     if (threads > 0) {
         ctx->thread_count = threads;
         ctx->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
@@ -610,6 +613,8 @@ void NativePlayer::videoDecodeLoop() {
     int64_t last_pts_ms = 0;
     int64_t frame_dur_ms = 33;
     int64_t send_ns = 0; // time spent in avcodec_send_packet since the last frame came out
+    bool skipping = false;                  // dropping packets until the next keyframe
+    const int64_t kSkipBehindMs = 1200;     // how far behind before we skip ahead
     {
         AVRational fr = fmt_ctx_->streams[video_stream_index_]->avg_frame_rate;
         if (fr.num > 0 && fr.den > 0) frame_dur_ms = std::max<int64_t>(1, 1000LL * fr.den / fr.num);
@@ -727,6 +732,31 @@ void NativePlayer::videoDecodeLoop() {
         if (tag != local_gen) {
             avcodec_flush_buffers(video_ctx_);
             local_gen = tag;
+            skipping = false;
+        }
+
+        // Catch-up: when the video is more than kSkipBehindMs behind the clock
+        // (decoder slower than real time), drop packets up to the next
+        // keyframe instead of decoding frames that would only be thrown away.
+        if (clockAnchoredFor(tag) && state_.load() == State::Playing) {
+            int64_t raw = pkt->pts != AV_NOPTS_VALUE ? pkt->pts : pkt->dts;
+            if (raw != AV_NOPTS_VALUE) {
+                int64_t behind = clockPositionMs() - ptsToMs(raw, video_time_base_);
+                if (!skipping && behind > kSkipBehindMs) {
+                    skipping = true;
+                    avcodec_flush_buffers(video_ctx_); // discard frames still inside the decoder
+                    send_ns = 0;
+                }
+                if (skipping) {
+                    if (pkt->flags & AV_PKT_FLAG_KEY) {
+                        skipping = false; // resume decoding from this keyframe
+                    } else {
+                        frames_dropped_.fetch_add(1);
+                        av_packet_free(&pkt);
+                        continue;
+                    }
+                }
+            }
         }
 
         int64_t t_send = nowNs();
@@ -1008,11 +1038,18 @@ void NativePlayer::renderLoop() {
             sync_.setAudioClockMs(clockPositionMs());
             int64_t delay = sync_.delayForVideoPtsMs(pts_ms);
             if (delay == Sync::kDropFrame) {
-                frames_dropped_.fetch_add(1);
+                // Only skip a late frame if a newer one is already waiting.
+                // If the decoder is the bottleneck (nothing queued behind this
+                // frame), show it late: video runs slower instead of freezing.
+                if (video_frames_.size() > 0) {
+                    frames_dropped_.fetch_add(1);
+                    atomicMax(max_late_ms_, clockPositionMs() - pts_ms);
+                    av_frame_free(&pending);
+                    pending = nullptr;
+                    continue;
+                }
                 atomicMax(max_late_ms_, clockPositionMs() - pts_ms);
-                av_frame_free(&pending);
-                pending = nullptr;
-                continue;
+                delay = 0;
             }
             if (delay > 0) {
                 sleepMs((int)std::min<int64_t>(delay, 8));
@@ -1078,14 +1115,16 @@ std::string NativePlayer::getStats() {
     snprintf(buf, sizeof(buf),
              "{\"fps\":%.1f,\"dropped\":%d,\"cpu\":%.1f,\"decoder\":\"%s\",\"av_offset_ms\":%lld,"
              "\"res\":\"%dx%d\",\"pix\":\"%s\",\"cores\":%ld,\"dec_ms\":%.1f,\"conv_ms\":%.1f,"
-             "\"rend_ms\":%.1f,\"vq\":%d,\"pq\":%d,\"dmax_ms\":%.1f,\"rmax_ms\":%.1f,\"late_ms\":%lld}",
+             "\"rend_ms\":%.1f,\"vq\":%d,\"pq\":%d,\"dmax_ms\":%.1f,\"rmax_ms\":%.1f,\"late_ms\":%lld,"
+             "\"up_ms\":%.1f,\"swap_ms\":%.1f}",
              last_fps_, frames_dropped_.load(), last_cpu_, decoder,
              (long long)last_av_offset_ms_.load(),
              video_width_.load(), video_height_.load(), pix ? pix : "?",
              sysconf(_SC_NPROCESSORS_ONLN), dec_us_.load() / 1000.0, conv_us_.load() / 1000.0,
              render_us_.load() / 1000.0, video_frames_.size(), video_packets_.size(),
              shown_dec_max_us_ / 1000.0, shown_render_max_us_ / 1000.0,
-             (long long)shown_late_max_ms_);
+             (long long)shown_late_max_ms_,
+             renderer_.upload_us() / 1000.0, renderer_.swap_us() / 1000.0);
     return std::string(buf);
 }
 

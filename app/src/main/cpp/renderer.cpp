@@ -2,6 +2,13 @@
 #include <android/log.h>
 #include <cstring>
 #include <initializer_list>
+#include <ctime>
+
+static int64_t rNowUs() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+}
 
 #define LOG_TAG "customplayer_renderer"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -159,6 +166,10 @@ bool Renderer::init(ANativeWindow *window) {
         return false;
     }
 
+    // Don't make eglSwapBuffers wait for the screen refresh: on this class of
+    // phone that wait is 8-16 ms per frame spent blocked on the render thread.
+    eglSwapInterval(display_, 0);
+
     if (!compileProgram()) {
         return false;
     }
@@ -258,11 +269,20 @@ void Renderer::renderFrame(AVFrame *frame) {
     int w = frame->width, h = frame->height;
     int cw = (w + 1) / 2, ch = (h + 1) / 2; // chroma plane dims for 4:2:0
 
+    int64_t t_up = rNowUs();
     uploadPlane(tex_y_, w, h, frame->data[0], frame->linesize[0]);
     uploadPlane(tex_u_, cw, ch, frame->data[1], frame->linesize[1]);
     uploadPlane(tex_v_, cw, ch, frame->data[2], frame->linesize[2]);
+    upload_us_ = (int)((upload_us_ * 9 + (rNowUs() - t_up)) / 10);
 
-    glViewport(0, 0, w, h);
+    // Viewport must be the surface's size, not the video's: the view already
+    // letterboxes itself to the video aspect, and a video-sized viewport on a
+    // smaller surface crops the picture and wastes fill rate.
+    EGLint sw = 0, sh = 0;
+    eglQuerySurface(display_, surface_, EGL_WIDTH, &sw);
+    eglQuerySurface(display_, surface_, EGL_HEIGHT, &sh);
+    if (sw <= 0 || sh <= 0) { sw = w; sh = h; }
+    glViewport(0, 0, sw, sh);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -305,5 +325,7 @@ void Renderer::renderFrame(AVFrame *frame) {
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+    int64_t t_sw = rNowUs();
     eglSwapBuffers(display_, surface_);
+    swap_us_ = (int)((swap_us_ * 9 + (rNowUs() - t_sw)) / 10);
 }
