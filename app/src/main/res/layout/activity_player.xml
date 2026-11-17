@@ -62,43 +62,114 @@
                 android:textColor="#FFFFFF" />
         </LinearLayout>
 
-        <!-- Row 1: transport. Fixed small group, centred. -->
+        <!-- Row 1: symbol buttons (Unicode text, so they scale like text).
+             Equal-width slots, capped at 64dp each, centred as a group. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
 
-            <ImageButton
+            <Button
                 android:id="@+id/btnBack"
-                android:layout_width="52dp"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="0dp"
                 android:layout_height="52dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:layout_weight="1"
+                android:maxWidth="64dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:includeFontPadding="false"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/sym_back"
                 android:contentDescription="@string/seek_back"
-                android:src="@drawable/ic_seek_back"
-                android:tint="#FFFFFF" />
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp" />
 
-            <ImageButton
+            <Button
                 android:id="@+id/btnPlay"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/play"
-                android:src="@drawable/ic_play"
-                android:tint="#FFFFFF" />
-
-            <ImageButton
-                android:id="@+id/btnForward"
-                android:layout_width="52dp"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="0dp"
                 android:layout_height="52dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:layout_weight="1"
+                android:maxWidth="64dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:includeFontPadding="false"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/sym_play"
+                android:contentDescription="@string/play"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp" />
+
+            <Button
+                android:id="@+id/btnForward"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:maxWidth="64dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:includeFontPadding="false"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/sym_forward"
                 android:contentDescription="@string/seek_forward"
-                android:src="@drawable/ic_seek_forward"
-                android:tint="#FFFFFF" />
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp" />
+
+            <Button
+                android:id="@+id/btnRotate"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:maxWidth="64dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:includeFontPadding="false"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/sym_rotate"
+                android:contentDescription="@string/rotate"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="26sp" />
+
+            <Button
+                android:id="@+id/btnScale"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:maxWidth="64dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:includeFontPadding="false"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/sym_scale_fit"
+                android:contentDescription="@string/scale"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp" />
         </LinearLayout>
 
-        <!-- Row 2: options. Equal-width slots (weight 1) so all four always
-             fit, whatever the screen width. -->
+        <!-- Row 2: text options. Equal-width slots so all fit, whatever the
+             screen width. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -145,20 +216,6 @@
                 android:paddingEnd="2dp"
                 android:maxLines="1"
                 android:text="@string/stats"
-                android:textSize="12sp"
-                android:textColor="#FFFFFF" />
-
-            <Button
-                android:id="@+id/btnRotate"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:minWidth="0dp"
-                android:paddingStart="2dp"
-                android:paddingEnd="2dp"
-                android:maxLines="1"
-                android:text="@string/rotate"
                 android:textSize="12sp"
                 android:textColor="#FFFFFF" />
         </LinearLayout>

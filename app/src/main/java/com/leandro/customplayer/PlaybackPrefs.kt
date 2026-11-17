@@ -20,4 +20,9 @@ class PlaybackPrefs(context: Context) {
     var lastFolder: String?
         get() = prefs.getString("last_folder", null)
         set(value) { prefs.edit().putString("last_folder", value).apply() }
+
+    /** 0 = fit, 1 = stretch, 2 = original size. */
+    var scaleMode: Int
+        get() = prefs.getInt("scale_mode", 0)
+        set(value) { prefs.edit().putInt("scale_mode", value).apply() }
 }

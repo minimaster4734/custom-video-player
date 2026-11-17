@@ -36,6 +36,7 @@
         <activity
             android:name=".PlayerActivity"
             android:exported="true"
+            android:theme="@style/Theme.CustomPlayer.Player"
             android:screenOrientation="fullSensor"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout">
             <intent-filter>

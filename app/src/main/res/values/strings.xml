@@ -24,4 +24,20 @@
     <string name="loop_on">Loop: on</string>
     <string name="stats">Stats</string>
     <string name="rotate">Rotate</string>
+
+    <string name="scale">Scale</string>
+    <string name="scale_fit">Fit to window</string>
+    <string name="scale_stretch">Stretch to fill screen</string>
+    <string name="scale_original">Original size</string>
+
+    <!-- Control symbols (Unicode, so they scale like text). U+FE0E asks for the
+         plain text look instead of a coloured emoji. -->
+    <string name="sym_play">&#x25B6;&#xFE0E;</string>
+    <string name="sym_pause">&#x25AE;&#x25AE;</string>
+    <string name="sym_back">&#x25C0;&#xFE0E;&#x25C0;&#xFE0E;</string>
+    <string name="sym_forward">&#x25B6;&#xFE0E;&#x25B6;&#xFE0E;</string>
+    <string name="sym_rotate">&#x21BB;&#xFE0E;</string>
+    <string name="sym_scale_fit">&#x25A3;</string>
+    <string name="sym_scale_stretch">&#x2194;&#xFE0E;</string>
+    <string name="sym_scale_original">1:1</string>
 </resources>

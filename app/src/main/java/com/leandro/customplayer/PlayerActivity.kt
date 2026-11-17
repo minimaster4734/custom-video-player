@@ -58,7 +58,8 @@ class PlayerActivity : AppCompatActivity(), SurfaceHolder.Callback {
         super.onCreate(savedInstanceState)
         binding = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                or WindowManager.LayoutParams.FLAG_FULLSCREEN)
         enterImmersive()
 
         prefs = PlaybackPrefs(this)
@@ -93,6 +94,11 @@ class PlayerActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 android.content.res.Configuration.ORIENTATION_LANDSCAPE
             requestedOrientation = if (landscape) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                                    else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
+        // Scale: fit to window -> stretch to fill -> original size.
+        applyScaleMode(prefs.scaleMode, announce = false)
+        binding.btnScale.setOnClickListener {
+            applyScaleMode((prefs.scaleMode + 1) % 3, announce = true)
         }
         binding.btnStats.setOnClickListener {
             statsVisible = !statsVisible
@@ -156,7 +162,7 @@ class PlayerActivity : AppCompatActivity(), SurfaceHolder.Callback {
             binding.seekBar.progress = pos.toInt()
             binding.positionText.text = formatTime(pos)
         }
-        binding.btnPlay.setImageResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play)
+        binding.btnPlay.setText(if (playing) R.string.sym_pause else R.string.sym_play)
         binding.btnPlay.contentDescription = getString(if (playing) R.string.pause else R.string.play)
 
         if (statsVisible) {
@@ -200,6 +206,18 @@ class PlayerActivity : AppCompatActivity(), SurfaceHolder.Callback {
         NativePlayer.nativeSeekTo(target)
     }
 
+    private fun applyScaleMode(mode: Int, announce: Boolean) {
+        prefs.scaleMode = mode
+        val (scale, symbol, label) = when (mode) {
+            1 -> Triple(PlayerView.ScaleMode.STRETCH, R.string.sym_scale_stretch, R.string.scale_stretch)
+            2 -> Triple(PlayerView.ScaleMode.ORIGINAL, R.string.sym_scale_original, R.string.scale_original)
+            else -> Triple(PlayerView.ScaleMode.FIT, R.string.sym_scale_fit, R.string.scale_fit)
+        }
+        binding.playerView.scaleMode = scale
+        binding.btnScale.setText(symbol)
+        if (announce) Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
+    }
+
     private fun setControlsVisible(visible: Boolean) {
         controlsVisible = visible
         binding.controls.visibility = if (visible) View.VISIBLE else View.GONE
@@ -207,10 +225,14 @@ class PlayerActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     @Suppress("DEPRECATION")
     private fun enterImmersive() {
+        // The LAYOUT_* flags make the content extend under the status/navigation
+        // bars, so hiding them leaves no reserved (white) strip behind.
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
                 or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE)
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
     }
 
     private fun formatTime(ms: Long): String {
